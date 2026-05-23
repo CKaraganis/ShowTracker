@@ -1,0 +1,74 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "My Shows";
+    var thisYear = DateOnly.FromDateTime(DateTime.Today).Year;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Index.css" asp-append-version="true" />
+}
+
+<div class="shows-grid">
+    @foreach (var vm in Model.Shows)
+    {
+        <div class="show-card @(vm.IsCompleted ? "completed-card" : "")">
+            <div class="show-card-header">
+                <span class="show-name">@vm.Show.ShowName</span>
+            </div>
+
+            @if (vm.IsCompleted)
+            {
+                <div class="episode-target">
+                    <span class="completed-badge">Completed</span>
+                </div>
+            }
+            else if (vm.NotStarted)
+            {
+                <div class="episode-target">
+                    <div class="episode-label">Starts</div>
+                    <div class="start-date">@vm.Show.IndexingDate.ToString("MMM d, yyyy")</div>
+                </div>
+            }
+            else
+            {
+                <div class="episode-target">
+                    <div class="episode-label">Cycle target</div>
+                    <div class="episode-number">@vm.CycleEndEpisode</div>
+                    <div class="episode-total">
+                        of @vm.Show.EpisodeCount
+                        &bull;
+                        by @(vm.CycleEndDate.Year == thisYear
+                            ? vm.CycleEndDate.ToString("MMM d")
+                            : vm.CycleEndDate.ToString("MMM d, yyyy"))
+                    </div>
+                </div>
+            }
+
+            @if (!vm.NotStarted)
+            {
+                <div class="progress-bar-wrapper">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill @(vm.IsCompleted ? "done" : "")"
+                             style="width: @vm.ProgressPercent.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)%">
+                        </div>
+                    </div>
+                    <div class="progress-label">@vm.ProgressPercent.ToString("F0")%</div>
+                </div>
+            }
+
+            <div class="show-meta">
+                @vm.Show.EpisodesPerInterval ep@(vm.Show.EpisodesPerInterval == 1 ? "" : "s") /
+                @vm.Show.IntervalUnit.ToString().ToLower()
+                &bull;
+                indexed at ep. @vm.Show.IndexingEpisode on @vm.Show.IndexingDate.ToString("MMM d, yyyy")
+            </div>
+            @if (!vm.IsCompleted)
+            {
+                <div class="completion-date">
+                    Finishes @vm.CompletionDate.ToString("MMM d, yyyy")
+                </div>
+            }
+        </div>
+    }
+</div>
