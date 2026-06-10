@@ -5,11 +5,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace CKaraganis.ShowTracker.Pages;
 
-public record ShowViewModel(Show Show, int CycleEndEpisode, DateOnly CycleEndDate, DateOnly CompletionDate, double ProgressPercent, bool IsCompleted, bool NotStarted);
+public record ShowViewModel(Show Show, int CycleEndEpisode, DateOnly CycleEndDate, DateOnly CompletionDate, decimal ProgressPercent, bool IsCompleted, bool NotStarted);
 
 public class IndexModel : PageModel
 {
     private readonly IDataService _dataService;
+    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.Today);
 
     public IndexModel(IDataService dataService)
     {
@@ -21,16 +22,15 @@ public class IndexModel : PageModel
     public async Task OnGetAsync()
     {
         var shows = await _dataService.GetAllShowsAsync();
-        var today = DateOnly.FromDateTime(DateTime.Today);
         Shows = shows.Select(s =>
         {
-            var notStarted = today < s.IndexingDate;
-            var completed = CompletedIntervals(s, today);
-            var cycleNumber = completed + 1;
+            var notStarted = Today <= s.IndexingDate;
+            var completedCycles = CompletedIntervals(s);
+            var cycleNumber = completedCycles + 1;
             var endEpisode = Math.Min(s.IndexingEpisode + cycleNumber * s.EpisodesPerInterval, s.EpisodeCount);
             var endDate = AddIntervals(s.IndexingDate, cycleNumber, s.IntervalUnit);
-            var pct = Math.Min((double)endEpisode / s.EpisodeCount * 100, 100);
-            var intervalsToFinish = (int)Math.Ceiling((double)(s.EpisodeCount - s.IndexingEpisode) / s.EpisodesPerInterval);
+            var pct = Math.Min((decimal)endEpisode / s.EpisodeCount * 100, 100);
+            var intervalsToFinish = (int)Math.Ceiling((decimal)(s.EpisodeCount - s.IndexingEpisode) / s.EpisodesPerInterval);
             var completionDate = AddIntervals(s.IndexingDate, intervalsToFinish, s.IntervalUnit);
             return new ShowViewModel(s, endEpisode, endDate, completionDate, pct, endEpisode >= s.EpisodeCount, notStarted);
         })
@@ -39,16 +39,17 @@ public class IndexModel : PageModel
         .ToList();
     }
 
-    private static int CompletedIntervals(Show show, DateOnly today)
+    private static int CompletedIntervals(Show show)
     {
-        if (today <= show.IndexingDate) return 0;
+        if (Today <= show.IndexingDate) 
+            return 0;
 
         return show.IntervalUnit switch
         {
-            IntervalUnit.Day => today.DayNumber - show.IndexingDate.DayNumber,
-            IntervalUnit.Week => (today.DayNumber - show.IndexingDate.DayNumber) / 7,
-            IntervalUnit.Month => CompletedMonths(show.IndexingDate, today),
-            IntervalUnit.Year => CompletedYears(show.IndexingDate, today),
+            IntervalUnit.Day => Today.DayNumber - show.IndexingDate.DayNumber,
+            IntervalUnit.Week => (Today.DayNumber - show.IndexingDate.AddDays(1).DayNumber) / 7,
+            IntervalUnit.Month => CompletedMonths(show.IndexingDate, Today),
+            IntervalUnit.Year => CompletedYears(show.IndexingDate, Today),
             _ => 0
         };
     }
@@ -56,7 +57,8 @@ public class IndexModel : PageModel
     private static int CompletedMonths(DateOnly from, DateOnly to)
     {
         var months = (to.Year - from.Year) * 12 + (to.Month - from.Month);
-        if (to.Day < from.Day) months--;
+        if (to.Day < from.Day) 
+            months--;
         return Math.Max(0, months);
     }
 
